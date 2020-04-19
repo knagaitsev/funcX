@@ -52,7 +52,7 @@ class Manager(object):
     def __init__(self,
                  task_q_url="tcp://127.0.0.1:50097",
                  result_q_url="tcp://127.0.0.1:50098",
-                 max_queue_size=10,
+                 max_queue_size=5,
                  cores_per_worker=1,
                  max_workers=float('inf'),
                  uid=None,
@@ -187,7 +187,7 @@ class Manager(object):
                'python_v': "{}.{}.{}".format(sys.version_info.major,
                                              sys.version_info.minor,
                                              sys.version_info.micro),
-               'max_worker_count': self.max_worker_count,
+               'max_worker_count': self.max_queue_size,
                'cores': self.cores_on_node,
                'mem': self.available_mem_on_node,
                'block_id': self.block_id,
@@ -256,8 +256,10 @@ class Manager(object):
                 last_beat = time.time()
 
             if pending_task_count < self.max_queue_size and ready_worker_count > 0:
-                logger.debug("[TASK_PULL_THREAD] Requesting tasks: {}".format(self.worker_map.ready_worker_type_counts))
-                msg = pickle.dumps(self.worker_map.ready_worker_type_counts)
+                cur_request = self.worker_map.ready_worker_type_counts.copy()
+                cur_request['unused'] += (self.max_queue_size - pending_task_count)
+                logger.debug("[TASK_PULL_THREAD] Requesting tasks: {}".format(cur_request))
+                msg = pickle.dumps(cur_request)
                 self.task_incoming.send(msg)
 
             # Receive results from the workers, if any
