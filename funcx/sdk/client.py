@@ -109,7 +109,7 @@ class FuncXClient(throttling.ThrottledBaseClient):
             except Exception:
                 raise Exception("Failure during deserialization of the result object")
             else:
-                status.update({'pending': 'False',
+                status.update({'pending': False,
                                'result': r_obj})
                 self.func_table[task_id] = status
 
@@ -120,7 +120,7 @@ class FuncXClient(throttling.ThrottledBaseClient):
             except Exception:
                 raise Exception("Failure during deserialization of the Task's exception object")
             else:
-                status.update({'pending': 'False',
+                status.update({'pending': False,
                                'exception': r_exception})
                 self.func_table[task_id] = status
         return status
@@ -138,19 +138,16 @@ class FuncXClient(throttling.ThrottledBaseClient):
         dict
             Status block containing "status" key.
         """
-        if task_id in self.func_table:
-             return self.func_table[task_id]
 
-        r = self.get("{task_id}/status".format(task_id=task_id))
+        r = self.get("tasks/{task_id}/status".format(task_id=task_id))
         logger.debug("Response string : {}".format(r))
-        try:
-            rets = self.update_table(r.text, task_id)
-        except Exception as e:
-            raise e
-        return rets
+
+        rets = r.json
+
+        return rets['status']
 
     def get_result(self, task_id):
-        """ Get the result of a funcX task
+        """Get the result of a funcX task
 
         Parameters
         ----------
@@ -165,29 +162,44 @@ class FuncXClient(throttling.ThrottledBaseClient):
         ------
         Exception obj: Exception due to which the task failed
         """
-        status = self.get_task_status(task_id)
-        if status['pending'] is True:
+        if task_id in self.func_table:
+            rets = self.func_table[task_id]
+            if 'result' in rets:
+                return rets['result']
+            else:
+                logger.error("We have an exception : {}".format(rets['exception']))
+                rets['exception'].reraise()
+
+        try:
+            r = self.get("tasks/{task_id}".format(task_id=task_id))
+            logger.debug("Response string : {}".format(r))
+
+            rets = self.update_table(r.text, task_id)
+        except Exception as e:
+            raise e
+
+        if 'result' in rets:
+            return rets['result']
+        elif rets['status'] == "pending":
             raise Exception("Task pending")
         else:
-            if 'result' in status:
-                return status['result']
-            else:
-                logger.warn("We have an exception : {}".format(status['exception']))
-                status['exception'].reraise()
+            logger.error("We have an exception : {}".format(rets['exception']))
+            rets['exception'].reraise()
 
-    def get_batch_status(self, task_id_list):
-        """ Request status for a batch of task_ids
+        return rets
+
+    def get_batch_result(self, task_id_list):
+        """ Request results for a batch of task_ids
         """
         assert isinstance(task_id_list, list), "get_batch_status expects a list of task ids"
-
 
         pending_task_ids = [t for t in task_id_list if t not in self.func_table]
 
         results = {}
 
-        if pending_task_ids :
+        if pending_task_ids:
             payload = {'task_ids': pending_task_ids}
-            r = self.post("/batch_status", json_body=payload)
+            r = self.post("/batch_result", json_body=payload)
             logger.debug("Response string : {}".format(r))
 
         pending_task_ids = set(pending_task_ids)
@@ -206,13 +218,6 @@ class FuncXClient(throttling.ThrottledBaseClient):
                 results[task_id] = self.func_table[task_id]
 
         return results
-
-
-    def get_batch_result(self, task_id_list):
-        """ Request results for a batch of task_ids
-        """
-        pass
-
 
     def run(self, *args, endpoint_id=None, function_id=None, asynchronous=False, **kwargs):
         """Initiate an invocation
