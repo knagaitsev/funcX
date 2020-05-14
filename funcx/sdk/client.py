@@ -48,7 +48,6 @@ class FuncXClient(throttling.ThrottledBaseClient):
         Keyword arguments are the same as for BaseClient.
         """
         self.func_table = {}
-        self.ep_registration_path = 'register_endpoint_2'
         self.funcx_home = os.path.expanduser(funcx_home)
 
         if not os.path.exists(self.TOKEN_DIR):
@@ -340,7 +339,7 @@ class FuncXClient(throttling.ThrottledBaseClient):
         """
         data = {"endpoint_name": name, "endpoint_uuid": endpoint_uuid, "description": description}
 
-        r = self.post(self.ep_registration_path, json_body=data)
+        r = self.post('endpoints', json_body=data)
         if r.http_status is not 200:
             raise Exception(r)
 
