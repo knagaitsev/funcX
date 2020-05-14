@@ -416,7 +416,7 @@ class FuncXClient(throttling.ThrottledBaseClient):
         function uuid : str
             UUID identifier for the registered function
         """
-        registration_path = 'register_function'
+        registration_path = 'functions'
 
         serialized_fn = self.fx_serializer.serialize(function)
         packed_code = self.fx_serializer.pack_buffers([serialized_fn])
