@@ -6,7 +6,6 @@ import time
 
 logger = logging.getLogger(__name__)
 
-
 class WorkerMap(object):
     """ WorkerMap keeps track of workers
     """
@@ -217,7 +216,7 @@ class WorkerMap(object):
             if container_uri is None:
                 logger.error("Worker mode is singularity but no container is specified for task")
                 raise NameError("No container is specified")
-            modded_cmd = f'singularity exec -H /home/ {container_uri} cmd'
+            modded_cmd = f'singularity exec -H /home/ {container_uri} {cmd}'
             logger.info("Command string with singularity:\n {}".format(modded_cmd))
     
         else:
