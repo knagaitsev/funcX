@@ -133,8 +133,7 @@ class FuncXClient(throttling.ThrottledBaseClient):
 
             # Start up an asynchronous polling loop in the background
             # Throttle to ten calls per second
-            self.polling_task = PollingTask(self, self.loop, period=1.0,
-                                            max_calls_per_period=10, cooldown=5.0)
+            self.polling_task = PollingTask(self, self.loop)
         else:
             self.loop = None
 
