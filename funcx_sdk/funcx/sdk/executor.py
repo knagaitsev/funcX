@@ -1,12 +1,14 @@
 import time
 import threading
 import os
+import asyncio
 import uuid
 from concurrent.futures import Future
 import concurrent
 import logging
 import websockets
 from websockets.exceptions import InvalidHandshake
+import janus
 import multiprocessing as mp
 
 logger = logging.getLogger(__name__)
@@ -59,35 +61,39 @@ class FuncXExecutor(concurrent.futures.Executor):
         # to tell the web_socket_poller to listen on them. Later we'll associate
 
         self.task_group_queue = mp.Queue()
+        # self.task_future_queue = janus.Queue()
+        # async_task_future_q = self.task_future_queue.async_q
+        loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self.web_socket_poller,
-                                       args=(self._kill_event, self.task_group_queue, ))
+                                       args=(self._kill_event, loop, ))
+
+        asyncio.run_coroutine_threadsafe(self.handle_task(), loop)
+
+        # self.task_future_queue.sync_q.put_nowait(1)
+
         self.thread.start()
         logger.debug("Started web_socket_poller thread")
 
-    def get_auth_header(self):
-        """
-        Gets an Authorization header to be sent during the WebSocket handshake. Based on
-        header setting in the Globus SDK: https://github.com/globus/globus-sdk-python/blob/main/globus_sdk/base.py
+    async def handle_task(self):
+        print('c')
 
-        Returns
-        -------
-        Key-value tuple of the Authorization header
-        [(key, value)]
-        """
-        headers = dict()
-        self.funcx_client.authorizer.set_authorization_header(headers)
-        header_name = 'Authorization'
-        return (header_name, headers[header_name])
+    def web_socket_poller(self, kill_event, loop):
+        asyncio.set_event_loop(loop)
 
-    def web_socket_poller(self, kill_event, task_group_queue):
+        loop.create_task(self.run_ws())
+        loop.create_task(self.receive_info())
+        loop.run_forever()
 
-        headers = self.get_auth_header()
-        try:
-            self.ws = websockets.client.connect(self.results_ws_uri, extra_headers=[headers])
-            # initial Globus authentication happens during the HTTP portion of the handshake,
-            # so an invalid handshake means that the user was not authenticated
-        except InvalidHandshake:
-            raise Exception('Failed to authenticate user. Please ensure that you are logged in.')
+    async def run_ws(self):
+        print('a')
+        return
+    
+    async def receive_info(self):
+        print('b')
+        return
+        # while True:
+        #     task_future = await async_task_future_q.get()
+        #     print(task_future)
 
     def submit(self, function, *args, endpoint_id=None, container_uuid=None, **kwargs):
         """Initiate an invocation
@@ -157,13 +163,13 @@ if __name__ == '__main__':
     set_stream_logger()
     fx = FuncXExecutor(FuncXClient(funcx_service_address='http://localhost:5000/v2'))
 
-    endpoint_id = 'c6c7888a-1134-40a7-b062-8f3ecfc4b6c2'
-    future = fx.submit(double, 5, endpoint_id=endpoint_id)
+    # endpoint_id = 'c6c7888a-1134-40a7-b062-8f3ecfc4b6c2'
+    # future = fx.submit(double, 5, endpoint_id=endpoint_id)
 
-    for i in range(5):
-        time.sleep(1)
-        # Non-blocking check whether future is done
-        print("Is the future done? :", future.done())
+    # for i in range(5):
+    #     time.sleep(1)
+    #     # Non-blocking check whether future is done
+    #     print("Is the future done? :", future.done())
 
-    print("This next blocking call will fail with a TimeoutError because the backend isn't working")
-    future.result(timeout=2)     # <--- This is a blocking call
+    # print("This next blocking call will fail with a TimeoutError because the backend isn't working")
+    # future.result(timeout=2)     # <--- This is a blocking call

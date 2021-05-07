@@ -53,6 +53,10 @@ class WebSocketPollingTask:
             raw_data = await self.ws.recv()
             data = json.loads(raw_data)
             task_id = data['task_id']
+            # potential race condition: what if this task_id is not in self.pending_tasks
+            # because the asyncio.Future hasn't been created yet? Should we store this result
+            # somewhere else and then assign the result to the desired Future when it gets passed
+            # in via add_task?
             if task_id in self.pending_tasks:
                 task = self.pending_tasks[task_id]
                 del self.pending_tasks[task_id]
