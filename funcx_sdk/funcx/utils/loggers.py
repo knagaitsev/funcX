@@ -9,13 +9,29 @@ file_format_string = (
 stream_format_string = "%(asctime)s %(name)s:%(lineno)d [%(levelname)s]  %(message)s"
 
 
-def set_file_logger(
+def get_file_handler(
     filename,
-    name="funcx",
     level=logging.DEBUG,
     format_string=None,
     max_bytes=100 * 1024 * 1024,
     backup_count=1,
+):
+    if format_string is None:
+        format_string = file_format_string
+
+    handler = RotatingFileHandler(
+        filename, maxBytes=max_bytes, backupCount=backup_count
+    )
+    handler.setLevel(level)
+    formatter = logging.Formatter(format_string, datefmt="%Y-%m-%d %H:%M:%S")
+    handler.setFormatter(formatter)
+    return handler
+
+
+def set_file_logger(
+    filename,
+    name="funcx",
+    **kwargs,
 ):
     """Add a stream log handler.
 
@@ -30,17 +46,9 @@ def set_file_logger(
     Returns:
        -  None
     """
-    if format_string is None:
-        format_string = file_format_string
-
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    handler = RotatingFileHandler(
-        filename, maxBytes=max_bytes, backupCount=backup_count
-    )
-    handler.setLevel(level)
-    formatter = logging.Formatter(format_string, datefmt="%Y-%m-%d %H:%M:%S")
-    handler.setFormatter(formatter)
+    handler = get_file_handler(filename, **kwargs)
     logger.addHandler(handler)
 
     ws_logger = logging.getLogger("asyncio")
